@@ -210,7 +210,7 @@ step_convert() {
                 }
             else
                 echo "Copying .aif file with compression: $audio_file"
-                copy_with_structure "$src_file" "$src_base" "$DECODED_DIR"
+                copy_with_structure "$audio_file" "$EXTRACTED_DIR" "$DECODED_DIR"
             fi
         else
             # Copy non-.aif files directly to avoid conversion attempts
