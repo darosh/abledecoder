@@ -59,7 +59,7 @@ configuration.
 ### Factory scripts
 
 ```bash
-./factory.sh extract,convert,compress ~/Music/Ableton/Factory\ Packs /Volumes/ALL/Factory\ Packs
+./factory.sh extract,convert ~/Music/Ableton/Factory\ Packs /Volumes/ALL/Factory\ Packs
 ```
 
 ## Troubleshooting

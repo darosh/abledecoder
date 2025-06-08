@@ -2,15 +2,15 @@
 
 # Audio extraction and conversion script
 # Usage: ./extract.sh <steps> <input_folder> <output_folder>
-# Steps: extract,convert,compress,merge (comma-delimited)
+# Steps: extract,convert (comma-delimited)
 
 set -e  # Exit on any error
 
 # Check if required arguments are provided
 if [ $# -ne 3 ]; then
     echo "Usage: $0 <steps> <input_folder> <output_folder>"
-    echo "Steps: extract,convert,compress,merge (comma-delimited)"
-    echo "Example: $0 'extract,convert,compress,merge' '~/Music/Ableton/Factory Packs' '/Volumes/ALL/Factory Packs'"
+    echo "Steps: extract,convert (comma-delimited)"
+    echo "Example: $0 'extract,convert' '~/Music/Ableton/Factory Packs' '/Volumes/ALL/Factory Packs'"
     exit 1
 fi
 
@@ -21,12 +21,10 @@ OUTPUT_DIR="$3"
 # Create output directories
 EXTRACTED_DIR="${OUTPUT_DIR}/_extracted"
 DECODED_DIR="${OUTPUT_DIR}/_converted"
-COMPRESSED_DIR="${OUTPUT_DIR}/_compressed"
 
-mkdir -p "$EXTRACTED_DIR" "$DECODED_DIR" "$COMPRESSED_DIR"
+mkdir -p "$EXTRACTED_DIR" "$DECODED_DIR"
 FAILED_DIR="${OUTPUT_DIR}/_failed"
-MERGED_DIR="${OUTPUT_DIR}/_merged"
-mkdir -p "$FAILED_DIR" "$MERGED_DIR"
+mkdir -p "$FAILED_DIR"
 
 IFS=',' read -r -a steps <<< "$STEPS"
 
@@ -37,12 +35,6 @@ for step in "${steps[@]}"; do
             ;;
         convert)
             echo "Starting conversion step..."
-            ;;
-        compress)
-            echo "Starting compression step..."
-            ;;
-        merge)
-            echo "Starting merge step..."
             ;;
         *)
             echo "Unknown step: $step"
@@ -56,8 +48,13 @@ done
 get_relative_path() {
     local full_path="$1"
     local base_path="$2"
-    echo "${full_path#$base_path/}"
+    #    echo "${full_path#$base_path/}"
+
+    rel_path="${full_path#$base_path}"
+    rel_path="${rel_path#/}"  # normalize
+    echo "$rel_path"
 }
+
 
 # Function to copy file preserving directory structure
 copy_with_structure() {
@@ -90,6 +87,20 @@ is_audio_format() {
     local ext=$(echo "${file##*.}" | tr '[:upper:]' '[:lower:]')
     case "$ext" in
         wav|aif|aiff|mp3|ogg|flac|aac|m4a|wma)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Function to check if file is audio format
+is_lossless_audio_format() {
+    local file="$1"
+    local ext=$(echo "${file##*.}" | tr '[:upper:]' '[:lower:]')
+    case "$ext" in
+        wav|aif|aiff|flac)
             return 0
             ;;
         *)
@@ -198,8 +209,8 @@ step_convert() {
                     copy_failed "$audio_file" "$EXTRACTED_DIR" "abledecoder conversion failed"
                 }
             else
-                echo "Skipping .aif file with unsupported compression: $audio_file"
-                copy_failed "$audio_file" "$EXTRACTED_DIR" "Unsupported compression type"
+                echo "Copying .aif file with compression: $audio_file"
+                copy_with_structure "$src_file" "$src_base" "$DECODED_DIR"
             fi
         else
             # Copy non-.aif files directly to avoid conversion attempts
@@ -211,68 +222,6 @@ step_convert() {
     done
 
     echo "Convert step completed."
-}
-
-step_compress() {
-    echo "=== COMPRESS STEP ==="
-    echo "Converting to compressed formats (FLAC)..."
-
-    # Check if ffmpeg is available
-    if ! command -v ffmpeg >/dev/null 2>&1; then
-        echo "ERROR: ffmpeg not found. Cannot perform compression."
-        return 1
-    fi
-
-    # Process converted files
-    find "$DECODED_DIR" -type f | while read -r audio_file; do
-        if is_audio_format "$audio_file"; then
-            echo "Compressing to FLAC: $audio_file"
-
-            rel_path=$(get_relative_path "$audio_file" "$DECODED_DIR")
-            flac_file="$COMPRESSED_DIR/${rel_path%.*}.flac"
-            flac_dir=$(dirname "$flac_file")
-
-            mkdir -p "$flac_dir"
-
-            ffmpeg -i "$audio_file" -c:a flac "$flac_file" -y 2>/dev/null || {
-                copy_failed "$audio_file" "$DECODED_DIR" "FLAC compression failed"
-            }
-        fi
-    done
-
-    echo "Compress step completed."
-}
-
-step_merge() {
-    echo "=== MERGE STEP ==="
-    echo "Merging all processed files and cleaning up..."
-
-    # Copy files from all processing directories to merged directory
-    for source_dir in "$EXTRACTED_DIR" "$DECODED_DIR" "$COMPRESSED_DIR"; do
-        if [ -d "$source_dir" ]; then
-            echo "Merging files from $(basename "$source_dir")..."
-            find "$source_dir" -type f | while read -r file; do
-                rel_path=$(get_relative_path "$file" "$source_dir")
-                dest_file="$MERGED_DIR/$(basename "$source_dir")/$rel_path"
-                dest_dir=$(dirname "$dest_file")
-
-                mkdir -p "$dest_dir"
-                cp "$file" "$dest_file" || {
-                    echo "Warning: Failed to merge $file"
-                }
-            done
-        fi
-    done
-
-    # Clean up empty directories in all processing folders
-    echo "Cleaning up empty directories..."
-    for cleanup_dir in "$EXTRACTED_DIR" "$DECODED_DIR" "$COMPRESSED_DIR"; do
-        if [ -d "$cleanup_dir" ]; then
-            find "$cleanup_dir" -type d -empty -delete 2>/dev/null || true
-        fi
-    done
-
-    echo "Merge step completed."
 }
 
 # Execute requested steps
@@ -291,15 +240,9 @@ for step in "${steps[@]}"; do
         convert)
             step_convert
             ;;
-        compress)
-            step_compress
-            ;;
-        merge)
-            step_merge
-            ;;
         *)
             echo "ERROR: Unknown step: $step_name"
-            echo "Valid steps: extract, convert, compress, merge"
+            echo "Valid steps: extract, convert"
             exit 1
             ;;
     esac
