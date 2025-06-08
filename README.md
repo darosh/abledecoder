@@ -68,7 +68,9 @@ configuration.
 
 If you see errors like:
 
-```error:0308010C:digital envelope routines:inner_evp_generic_fetch:unsupported:crypto/evp/evp_fetch.c:375:Global default library context, Algorithm (BF-CBC : 14), Properties ()```
+```
+error:0308010C:digital envelope routines:inner_evp_generic_fetch:unsupported:crypto/evp/evp_fetch.c:375:Global default library context, Algorithm (BF-CBC : 14), Properties ()
+```
 
 This indicates that OpenSSL 3.x has deprecated the Blowfish-CBC algorithm. The code includes compatibility fixes, but
 you need to:
