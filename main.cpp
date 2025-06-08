@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "reading file " << inPath << " failed" << std::endl;
 
         input.close();
-        return 0;
+        return 1;
     }
 
     input.close();
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "writing file " << outPath << " failed" << std::endl;
 
         output.close();
-        return 0;
+        return 1;
     }
 
     output.close();

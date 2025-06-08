@@ -27,6 +27,8 @@ private:
     CommonChunk commonChunk;
 
     SoundDataChunk soundDataChunk;
+    
+    bool isAIFC = false;
 };
 
 

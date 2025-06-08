@@ -3,6 +3,7 @@
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/provider.h>
 
 AbleChunk::AbleChunk() : FileChunk(Utils::makeId({'a', 'b', 'l', 'e'})) {}
 
@@ -21,6 +22,16 @@ void AbleChunk::readData(std::istream &input, std::streamoff dataStart, int32_t 
 }
 
 void AbleChunk::decryptKey(const Array<uint8_t> &encryptedData) {
+    // Load legacy provider for Blowfish support in OpenSSL 3.x
+    OSSL_PROVIDER *legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    OSSL_PROVIDER *deflt = OSSL_PROVIDER_load(NULL, "default");
+    
+    if (!legacy || !deflt) {
+        if (legacy) OSSL_PROVIDER_unload(legacy);
+        if (deflt) OSSL_PROVIDER_unload(deflt);
+        throw std::runtime_error("Failed to load OpenSSL providers");
+    }
+    
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 
     const EVP_CIPHER *cipher = EVP_bf_cbc();
@@ -38,6 +49,9 @@ void AbleChunk::decryptKey(const Array<uint8_t> &encryptedData) {
 
     if (!success) {
         ERR_print_errors_fp(stderr);
+        EVP_CIPHER_CTX_free(ctx);
+        if (legacy) OSSL_PROVIDER_unload(legacy);
+        if (deflt) OSSL_PROVIDER_unload(deflt);
         throw std::runtime_error("error decrypting data");
     }
 
@@ -48,6 +62,9 @@ void AbleChunk::decryptKey(const Array<uint8_t> &encryptedData) {
 
     if (!success) {
         ERR_print_errors_fp(stderr);
+        EVP_CIPHER_CTX_free(ctx);
+        if (legacy) OSSL_PROVIDER_unload(legacy);
+        if (deflt) OSSL_PROVIDER_unload(deflt);
         throw std::runtime_error("error decrypting data");
     }
 
@@ -56,12 +73,19 @@ void AbleChunk::decryptKey(const Array<uint8_t> &encryptedData) {
 
     if (!success) {
         ERR_print_errors_fp(stderr);
+        EVP_CIPHER_CTX_free(ctx);
+        if (legacy) OSSL_PROVIDER_unload(legacy);
+        if (deflt) OSSL_PROVIDER_unload(deflt);
         throw std::runtime_error("error decrypting data");
     }
 
     decryptedDataLength += finalDataLength;
 
     EVP_CIPHER_CTX_free(ctx);
+    
+    // Cleanup providers
+    OSSL_PROVIDER_unload(legacy);
+    OSSL_PROVIDER_unload(deflt);
 
     if (12 + 256 > decryptedDataLength) {
         throw std::runtime_error("decrypted data is too short");

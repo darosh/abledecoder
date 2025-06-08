@@ -15,10 +15,15 @@ void FormChunk::read(std::istream &input) {
 
 void FormChunk::readData(std::istream &input, std::streamoff dataStart, int32_t dataSize) {
     uint32_t formType = Utils::readId(input);
-
-    if (formType != Utils::makeId({'A', 'I', 'F', 'C'})) {
-        throw std::runtime_error("form type is not AIFC");
+    
+    bool isAIFC = (formType == Utils::makeId({'A', 'I', 'F', 'C'}));
+    bool isAIFF = (formType == Utils::makeId({'A', 'I', 'F', 'F'}));
+    
+    if (!isAIFC && !isAIFF) {
+        throw std::runtime_error("form type is not AIFC or AIFF");
     }
+    
+    this->isAIFC = isAIFC;
 
     while (input.tellg() < dataStart + dataSize) {
         uint32_t subChunkId = Utils::readId(input);
@@ -26,7 +31,8 @@ void FormChunk::readData(std::istream &input, std::streamoff dataStart, int32_t 
         std::streamoff subChunkDataStart = input.tellg();
         std::streamoff subChunkDataEnd = subChunkDataStart + subChunkDataSize + (subChunkDataSize % 2 == 1 ? 1 : 0);
 
-        if (subChunkDataSize < 0 || subChunkDataEnd > dataStart + dataSize) {
+        // Allow for padding that might extend 1 byte beyond the file size
+        if (subChunkDataSize < 0 || (subChunkDataStart + subChunkDataSize) > dataStart + dataSize) {
             throw std::runtime_error("invalid data while parsing chunks");
         }
 
@@ -55,8 +61,9 @@ void FormChunk::readData(std::istream &input, std::streamoff dataStart, int32_t 
 }
 
 void FormChunk::writeData(std::ostream &output) {
+    // Output AIFC format for all decrypted files to ensure compatibility
     Utils::writeId(output, Utils::makeId({'A', 'I', 'F', 'C'}));
-
+    
     this->formatVersionChunk.write(output);
     this->commonChunk.write(output);
     this->soundDataChunk.write(output);

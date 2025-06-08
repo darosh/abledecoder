@@ -1,0 +1,8 @@
+# Temporary
+CMakeFiles/
+CMakeCache.txt
+abledecoder
+cmake_install.cmake
+
+# IDE
+.idea

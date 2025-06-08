@@ -8,7 +8,15 @@ void CommonChunk::readData(std::istream &input, std::streamoff dataStart, int32_
     this->numSampleFrames = Utils::readUint32(input);
     this->sampleSize = Utils::readInt16(input);
     input.read(reinterpret_cast<char *>(&this->sampleRate[0]), 10);
-    this->compressionType = Utils::readId(input);
+    
+    // AIFF files have 18-byte COMM chunk (no compression), AIFC files have longer chunks
+    if (dataSize == 18) {
+        // Standard AIFF - no compression field
+        this->compressionType = Utils::makeId({'N', 'O', 'N', 'E'});
+    } else {
+        // AIFC - read compression type
+        this->compressionType = Utils::readId(input);
+    }
 }
 
 void CommonChunk::writeData(std::ostream &output) {
